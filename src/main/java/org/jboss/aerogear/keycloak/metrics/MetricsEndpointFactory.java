@@ -1,5 +1,6 @@
 package org.jboss.aerogear.keycloak.metrics;
 
+import org.jboss.logging.Logger;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.keycloak.Config;
 import org.keycloak.models.KeycloakSession;
@@ -9,13 +10,26 @@ import org.keycloak.services.resource.RealmResourceProviderFactory;
 
 public class MetricsEndpointFactory implements RealmResourceProviderFactory {
 
+    private static final String BEARER_ENABLED_CONFIGURATION = "bearerEnabled";
+    private static final String REALM_CONFIGURATION = "realm";
+    private static final String DEFAULT_REALM = "master";
+    private static final String ROLE_CONFIGURATION = "role";
+    private static final String DEFAULT_ROLE = "prometheus-metrics";
+
+    private Boolean bearerEnabled;
+    private String realm;
+    private String role;
+
     @Override
     public RealmResourceProvider create(KeycloakSession session) {
-        return new MetricsEndpoint();
+        return new MetricsEndpoint(session, this.bearerEnabled, this.realm, this.role);
     }
 
     @Override
     public void init(Config.Scope config) {
+        this.bearerEnabled = config.getBoolean(BEARER_ENABLED_CONFIGURATION, false);
+        this.realm = config.get(REALM_CONFIGURATION, DEFAULT_REALM);
+        this.role = config.get(ROLE_CONFIGURATION, DEFAULT_ROLE);
 
         String resteasyVersion = ResteasyProviderFactory.class.getPackage().getImplementationVersion();
         if (resteasyVersion.startsWith("3.")) {
