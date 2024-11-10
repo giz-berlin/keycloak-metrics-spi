@@ -11,6 +11,8 @@ Two distinct providers are defined:
 
 The endpoint is available under `<base url>/realms/<realm>/metrics` (Quarkus). 
 It will return data for all realms, no matter which realm you use in the URL.
+By default, the metrics endpoint is **unprotected** and can be queried by everyone.
+See [External Access](#external-access) to protect your metrics endpoint.
 
 ## License 
 
@@ -433,7 +435,33 @@ keycloak_request_duration_sum{code="200",method="GET",resource="admin,admin/real
 
 ## External Access
 
-To disable metrics being externally accessible to a cluster. Set the environment variable 'DISABLE_EXTERNAL_ACCESS'. Once set enable the header 'X-Forwarded-Host' on your proxy. This is enabled by default on HA Proxy on Openshift.
+By default, the metrics endpoint is **unprotected** and can be queried by everyone.
+You should consider enabling one of the following settings.
+
+#### Bearer Token (recommended)
+
+You can configure authorization on the metrics endpoint using standard Bearer token authentication via the following environment variables (or corresponding CLI arguments).
+
+Environment Variable | Default | Description
+---|---|---
+`KC_SPI_REALM_RESTAPI_EXTENSION_METRICS_BEARER_ENABLED` | `false` | Set to `true` to require a valid Bearer token from a user in the configured realm which has the configured role assigned.
+`KC_SPI_REALM_RESTAPI_EXTENSION_METRICS_REALM` | `master` | Realm of the requesting user.
+`KC_SPI_REALM_RESTAPI_EXTENSION_METRICS_ROLE` | `prometheus-metrics` | Role that the requesting user must have to be able to query the metrics.
+
+To configure your Prometheus instance to obtain an OAuth2 token before querying the metrics endpoint, consult the [official Prometheus OAuth2 configuration](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2).
+In Keycloak, use a client of type `confidential` that has `Service Accounts Enabled` set to `ON`.
+Then, make sure to include the role configured above in the `Service Account Roles` of that client.
+
+#### Presence of the `X-Forwarded-Host` HTTP header
+
+**Note**: The following requires careful setup of your reverse proxy headers. Please consider [Bearer authentication](#bearer-authentication-recommended) first.
+
+To deny requests which have the `X-Forwarded-Host` header set, set the `DISABLE_EXTERNAL_ACCESS` environment variable to `true`.
+Then, configure your reverse proxy to set the `X-Forwarded-Host` header (which is enabled by default on HA Proxy on Openshift).
+
+Only requests which **don't** have the `X-Forwarded-Host` header set will be able to access the metrics.
+If you configured your proxy correctly to set this by default, all requests going through that proxy won't have access to the metrics.
+Instead, you'll need to access the metrics endpoint e.g. via the internal IP of the Keycloak host (since this won't have the `X-Forwarded-Host` header set).
 
 ## Grafana Dashboard
 
